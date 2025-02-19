@@ -207,11 +207,11 @@ export default function MainWrapper({ home = false, children }) {
 
       <div className="flex-1 flex flex-col">
         <header className="fixed top-0 left-0 w-full flex items-center justify-between bg-white shadow-md p-5 z-10">
-          <div className="text-2xl font-bold text-orange-600 hidden md:block">
+          <div className="text-2xl font-bold text-orange-600  md:block">
             Ashberri
           </div>
 
-          <div className="flex items-center bg-gray-100 border border-gray-400 rounded-full px-3 py-2 w-full md:w-3/5">
+          <div className="flex items-center bg-gray-100 border border-gray-400 rounded-full px-3 py-2 w-2/4 md:w-3/5">
             <BiSearch className="text-orange-500 text-lg" />
             <input
               type="text"
@@ -294,10 +294,10 @@ export default function MainWrapper({ home = false, children }) {
               </div>
             )}
 
-            <img
-              src="https://i.pravatar.cc/40"
-              alt="Profile"
-              className="w-10 h-10 rounded-full border border-gray-300"
+<img
+  src="https://i.pravatar.cc/40"
+  alt="Profile"
+  className="w-10 h-10 rounded-full border border-gray-300 hidden sm:block"
               style={{
                 width: "40px",
                 height: "40px",
