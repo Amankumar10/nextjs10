@@ -13,7 +13,7 @@ const SignupPage = () => {
     <div
       className="flex min-h-screen items-center justify-center bg-white bg-cover bg-center px-4 sm:px-6"
       style={{
-        backgroundImage: "url('login-bg.png')",
+        backgroundImage: "url('bg4.png')",
       }}
     >
       <div className="w-full bg-pink-gradient max-w-sm sm:max-w-md bg-white p-6 sm:p-8 rounded-xl shadow-lg bg-opacity-90">

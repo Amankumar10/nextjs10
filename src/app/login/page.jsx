@@ -15,7 +15,7 @@ const LoginPage = () => {
       <div
         className="hidden md:flex md:w-1/2 items-center justify-center bg-cover bg-center bg-white"
         style={{
-          backgroundImage: "url('login-bg.png')",
+          backgroundImage: "url('bg4.png')",
         }}
       >
         <div className="text-black text-center p-6 flex flex-col items-center justify-center">
