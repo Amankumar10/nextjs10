@@ -2,83 +2,51 @@
 
 import React, { useEffect, useState } from "react";
 
-import {
-  FaHome,
-  FaUserPlus,
-  FaCog,
-  FaCamera,
-  FaSmile,
-  FaThumbsUp,
-  FaThumbsDown,
-  FaShare,
-  FaUserCircle,
-} from "react-icons/fa";
-import {
-  Search,
-  Settings,
-  Home,
-  UserPlus,
-  User,
-  Bell,
-  MessageCircle,
-  Heart,
-  UserCheck,
-  MessageSquare,
-} from "lucide-react";
+import { FaHome, FaUserPlus, FaCog, FaUserCircle } from "react-icons/fa";
+import { MessageSquare } from "lucide-react";
 
 import { BiSearch } from "react-icons/bi";
 import { useRouter, usePathname } from "next/navigation";
-const friends = [
-  { id: 1, name: "Alexander Smith", avatar: "https://i.pravatar.cc/40?img=1" },
-  { id: 2, name: "Olivia Johnson", avatar: "https://i.pravatar.cc/40?img=2" },
-  {
-    id: 3,
-    name: "Benjamin Williams",
-    avatar: "https://i.pravatar.cc/40?img=3",
-  },
-  { id: 4, name: "Emily Brown", avatar: "https://i.pravatar.cc/40?img=4" },
-  { id: 5, name: "Liam Davis", avatar: "https://i.pravatar.cc/40?img=5" },
-  { id: 6, name: "Sophia Martinez", avatar: "https://i.pravatar.cc/40?img=6" },
-  { id: 7, name: "Noah Wilson", avatar: "https://i.pravatar.cc/40?img=7" },
-  { id: 8, name: "William Taylor", avatar: "https://i.pravatar.cc/40?img=8" },
-];
+import { useSelector } from "react-redux";
+import FullPageLoader from "./FullPageLoading";
+import { useGetFriendsQuery } from "../rtkQuery/api/endpoints/friendsApi";
+import { useLazyGetSearchUsersQuery } from "../rtkQuery/api/endpoints/searchApi";
+import Notifications from "./Notifications";
 
-const notifications = [
-  {
-    id: 1,
-    avatar: "https://i.pravatar.cc/40?img=1",
-    name: "Alexander Smith",
-    action: "liked your post",
-    time: "2m ago",
-    read: false,
-  },
-  {
-    id: 2,
-    avatar: "https://i.pravatar.cc/40?img=2",
-    name: "Olivia Johnson",
-    action: "commented on your photo",
-    time: "5m ago",
-    read: false,
-  },
-  {
-    id: 3,
-    avatar: "https://i.pravatar.cc/40?img=3",
-    name: "Benjamin Williams",
-    action: "sent you a friend request",
-    time: "10m ago",
-    read: true,
-  },
-];
+const debounce = (func, delay) => {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
 export default function MainWrapper({ home = false, children }) {
   const [search, setSearch] = useState("");
+  const [isScrollDisabled, setIsScrollDisabled] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { user } = useSelector((state) => state.auth);
+  const { data: getFriends, refetch } = useGetFriendsQuery();
+  const [getSearchUsers, { isLoading, error, data }] =
+    useLazyGetSearchUsersQuery();
+
   const [active, setActive] = useState(""); // Default active item
   const router = useRouter();
   const pathname = usePathname();
 
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-  };
+  // Refetch data only if the URL matches a specific path
+  useEffect(() => {
+    if (pathname === "/") {
+      refetch();
+    }
+    if (pathname === "/messenger") {
+      setIsScrollDisabled(true);
+    } else {
+      setIsScrollDisabled(false);
+    }
+  }, [pathname]); // Trigger when the pathname changes
 
   const handleClickOutside = (e) => {
     if (!e.target.closest(".notifications-container")) {
@@ -98,15 +66,38 @@ export default function MainWrapper({ home = false, children }) {
   // Set active based on current URL
   useEffect(() => {
     if (pathname) {
-      const activeItem = menuItems.find((item) => pathname.includes(item.path));
+      const activeItem = menuItems.find((item) => pathname == item.path);
       if (activeItem) {
         setActive(activeItem.text);
       }
     }
   }, [pathname]);
 
+  const fetchSuggestions = async (query) => {
+    if (query) {
+      setLoading(true);
+      const response = await getSearchUsers(query).unwrap();
+      setLoading(false);
+      setSuggestions(response);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const debouncedSearch = debounce(fetchSuggestions, 300);
+  useEffect(() => {
+    debouncedSearch(search);
+  }, [search]);
+
+  const handleSuggestionClick = (suggestion) => {
+    setSearch(suggestion.name);
+    router.push("/userprofile/" + suggestion.id);
+    setSuggestions([]);
+    // Optionally, you can trigger a search or navigate to a result page here
+  };
+
   const menuItems = [
-    { icon: <FaHome className="w-6 h-6" />, text: "Home", path: "/home" },
+    { icon: <FaHome className="w-6 h-6" />, text: "Home", path: "/" },
     {
       icon: <FaUserPlus className="w-6 h-6" />,
       text: "All User",
@@ -128,6 +119,8 @@ export default function MainWrapper({ home = false, children }) {
       path: "/profile",
     },
   ];
+
+  if (!user) return <FullPageLoader />;
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100">
       <aside className="hidden md:flex md:w-64 bg-white shadow-lg flex-col p-5">
@@ -178,10 +171,10 @@ export default function MainWrapper({ home = false, children }) {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t py-3 px-6">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t py-3 px-6 z-1">
         <div className="flex justify-between items-center">
           {menuItems.map((item, index) => {
-            const isActive = pathname?.includes(item.path);
+            const isActive = pathname === item.path;
             return (
               <button
                 key={index}
@@ -207,125 +200,78 @@ export default function MainWrapper({ home = false, children }) {
 
       <div className="flex-1 flex flex-col">
         <header className="fixed top-0 left-0 w-full flex items-center justify-between bg-white shadow-md p-5 z-10">
-          <div className="text-2xl font-bold text-orange-600  md:block">
+          <div className="text-2xl font-bold text-orange-600 hidden md:block">
             Ashberri
           </div>
 
-          <div className="flex items-center bg-gray-100 border border-gray-400 rounded-full px-3 py-2 w-2/4 md:w-3/5">
+          <div className="flex items-center bg-gray-100 border border-gray-400 rounded-full px-3 py-2 md:w-3/5 relative">
             <BiSearch className="text-orange-500 text-lg" />
             <input
               type="text"
               placeholder="Search here..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent outline-none px-2 w-full text-black"
+              className="bg-transparent outline-none px-2 text-black"
             />
-          </div>
-
-          <div className="flex items-center gap-4 notifications-container relative">
-            <button
-              className="p-2 rounded-full transition"
-              style={{
-                width: "40px",
-                height: "40px",
-                color: "purple",
-              }}
-              onClick={toggleNotifications}
-            >
-              <div className="relative">
-                <div className="w-10 h-10 bg-purple-700 rounded-full flex items-center justify-center mr-4">
-                  <Bell className="w-6 h-6 text-white" />
-                </div>
-                <span className="absolute -top-2 -right-5 bg-[#024DC0] text-white text-xs rounded-full w-8 h-6 flex items-center justify-center">
-                  129
-                </span>
-              </div>
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 top-16 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
-                <div className="p-4 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Notifications
-                    </h3>
-                    <span className="text-sm text-blue-600 cursor-pointer hover:text-blue-800">
-                      Mark all as read
-                    </span>
-                  </div>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-4 hover:bg-gray-50 transition cursor-pointer ${
-                        !notification.read ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={notification.avatar}
-                          alt=""
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">
-                            <span className="font-semibold">
-                              {notification.name}
-                            </span>{" "}
-                            {notification.action}
-                          </p>
-                          <span className="text-xs text-gray-500">
-                            {notification.time}
-                          </span>
-                        </div>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                        )}
-                      </div>
+            {/* {loading && <div className="mt-2">Loading...</div>} */}
+            {suggestions.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-10 mt-2 max-h-60 overflow-y-auto">
+                {suggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    {/* User Avatar */}
+                    <img
+                      src={suggestion.file} // Replace with the actual image URL from your data
+                      alt={suggestion.name}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    {/* User Details */}
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        {suggestion.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {suggestion.email}
+                      </p>
                     </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <button className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium">
-                    View All Notifications
-                  </button>
-                </div>
+                  </div>
+                ))}
               </div>
             )}
-
-<img
-  src="https://i.pravatar.cc/40"
-  alt="Profile"
-  className="w-10 h-10 rounded-full border border-gray-300 hidden sm:block"
-              style={{
-                width: "40px",
-                height: "40px",
-                position: "relative",
-                top: "2.67px",
-                left: "5.89px",
-                opacity: 1,
-              }}
-            />
           </div>
+
+          <Notifications />
         </header>
 
-        <main className="flex-1 p-6 mt-[4.5rem] container mx-auto overflow-y-auto max-h-screen">
+        <main
+          className={`flex-1 p-6 mt-[4.5rem] container mx-auto ${
+            isScrollDisabled ? "no-scroll" : "overflow-y-auto"
+          } max-h-screen`}
+        >
           {children}
         </main>
       </div>
       {home && (
-        <aside className="w-full sm:w-64 bg-white-300 shadow-lg p-5 mt-10 block hidden sm:block">
+        <aside className="hidden md:block w-64 bg-white shadow-lg p-5 mt-10 h-screen sticky top-0">
           <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">Friends</h2>
-          <div className="space-y-3 overflow-auto">
-            {friends.map((friend) => (
+          <div
+            className="space-y-3 overflow-y-auto max-h-[calc(100vh-180px)] pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+            style={{
+              scrollbarWidth: "thin",
+              msOverflowStyle: "none",
+            }}
+          >
+            {getFriends?.friend?.map((friend) => (
               <div
                 key={friend.id}
-                onClick={() => router.push("/messenger")}
+                onClick={() => router.push("/messenger?user=" + friend.user_id)}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-200 transition cursor-pointer"
               >
                 <img
-                  src={friend.avatar}
+                  src={friend.image}
                   alt={friend.name}
                   className="w-10 h-10 rounded-full border border-gray-300"
                 />
